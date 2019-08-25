@@ -35,6 +35,7 @@ namespace ArgonVariant
 
     inline std::map<std::string, std::function<std::shared_ptr<IHashingAlgorithm>(void)>> Algorithms
     {
+        { "ninjacoin", chukwa },
         { "chukwa", chukwa },
         { "turtlecoin", chukwa },
         { "chukwa_wrkz", chukwa_wrkz },
