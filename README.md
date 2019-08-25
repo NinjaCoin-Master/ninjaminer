@@ -19,6 +19,7 @@ A CPU miner for Argon2i, Argon2d, and Argon2id.
 If you prefer to compile yourself, read on. This can result in increased hashrates in some cases.
 
 ## Algorithms Supported
+* NinjaCoin - choose `ninjacoin` or `chukwa`
 * TurtleCoin - choose `turtlecoin` or `chukwa`
 * WrkzCoin - choose `wrkzcoin` or `chukwa_wrkz`
 
