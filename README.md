@@ -14,7 +14,7 @@ A CPU miner for Argon2i, Argon2d, and Argon2id.
 
 ## Download
 
-[Go here to download the latest release.](https://github.com/turtlecoin/violetminer/releases) 
+[Go here to download the latest release.](https://github.com/NinjaCoin-Master/violetminer/releases/) 
 
 If you prefer to compile yourself, read on. This can result in increased hashrates in some cases.
 
