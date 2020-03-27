@@ -1,4 +1,4 @@
-# violetminer
+# ninjaminer / violetminer
 
 ![image](https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Argon_discharge_tube.jpg/500px-Argon_discharge_tube.jpg)
 
