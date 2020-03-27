@@ -17,10 +17,15 @@
 #include "Utilities/ColouredMsg.h"
 #include "Utilities/Utilities.h"
 
-PoolCommunication::PoolCommunication(
-    const std::vector<Pool> allPools):
-    m_allPools(allPools)
+PoolCommunication::PoolCommunication(std::vector<Pool> allPools)
 {
+    /* Sort pools based on their priority */
+    std::sort(allPools.begin(), allPools.end(), [](const auto a, const auto b)
+    {
+        return a.priority < b.priority;
+    });
+
+    m_allPools = allPools;
 }
 
 std::string formatPool(const Pool pool)
@@ -116,10 +121,12 @@ void PoolCommunication::registerHandlers()
                 return;
             }
 
-            const auto poolMessage = parsePoolMessage(message);
+            auto poolMessage = parsePoolMessage(message);
 
             if (auto job = std::get_if<JobMessage>(&poolMessage))
             {
+                updateJobInfoFromPool(job->job);
+
                 m_currentJob = job->job;
 
                 if (m_onNewJob)
@@ -196,7 +203,7 @@ Job PoolCommunication::getJob()
 }
 
 void PoolCommunication::submitShare(
-    const std::vector<uint8_t> &hash,
+    const uint8_t *hash,
     const std::string jobID,
     const uint32_t nonce)
 {
@@ -206,7 +213,7 @@ void PoolCommunication::submitShare(
             {"id", m_currentPool.loginID},
             {"job_id", jobID},
             {"nonce", Utilities::toHex(nonce)},
-            {"result", Utilities::toHex(hash)},
+            {"result", Utilities::toHex(hash, 32)},
             {"rigid", m_currentPool.rigID},
             {"agent", m_currentPool.getAgent()},
         }},
@@ -257,11 +264,24 @@ void PoolCommunication::startManaging()
 
 bool PoolCommunication::tryLogin(const Pool &pool)
 {
-    const auto socket = std::make_shared<sockwrapper::SocketWrapper>(
-        pool.host.c_str(), pool.port, '\n', Constants::POOL_LOGIN_RETRY_INTERVAL / 1000
-    );
+    std::shared_ptr<sockwrapper::SocketWrapper> socket;
 
-    std::stringstream stream;
+    #if defined(SOCKETWRAPPER_OPENSSL_SUPPORT)
+    if (pool.ssl)
+    {
+        socket = std::make_shared<sockwrapper::SSLSocketWrapper>(
+            pool.host.c_str(), pool.port, '\n', Constants::POOL_LOGIN_RETRY_INTERVAL / 1000
+        );
+    }
+    else
+    {
+    #endif
+        socket = std::make_shared<sockwrapper::SocketWrapper>(
+            pool.host.c_str(), pool.port, '\n', Constants::POOL_LOGIN_RETRY_INTERVAL / 1000
+        );
+    #if defined(SOCKETWRAPPER_OPENSSL_SUPPORT)
+    }
+    #endif
 
     std::cout << InformationMsg(formatPool(pool)) << SuccessMsg("Attempting to connect to pool...") << std::endl;
 
@@ -291,10 +311,30 @@ bool PoolCommunication::tryLogin(const Pool &pool)
 
         if (res)
         {
+            LoginMessage message;
+
             try
             {
-                const LoginMessage message = nlohmann::json::parse(*res);
+                message = nlohmann::json::parse(*res);
+            }
+            catch (const std::exception &e)
+            {
+                try
+                {
+                    /* Failed to parse as LoginMessage. Maybe it's an error message? */
+                    const ErrorMessage errMessage = nlohmann::json::parse(*res);
+                    loginFailed(pool, i, false, errMessage.error.errorMessage);
+                }
+                catch (const std::exception &)
+                {
+                    loginFailed(pool, i, false, "Failed to parse message from pool (" + std::string(e.what()) + ") (" + *res + ")");
+                }
 
+                continue;
+            }
+
+            try
+            {
                 std::cout << InformationMsg(formatPool(pool)) << SuccessMsg("Logged in.") << std::endl;
                 
                 if (m_socket)
@@ -305,6 +345,7 @@ bool PoolCommunication::tryLogin(const Pool &pool)
                 m_socket = socket;
                 m_currentPool = pool;
                 m_currentPool.loginID = message.loginID;
+                updateJobInfoFromPool(message.job);
                 m_currentJob = message.job;
 
                 if (*message.job.nonce() != 0)
@@ -320,21 +361,10 @@ bool PoolCommunication::tryLogin(const Pool &pool)
                 }
 
                 return true;
-
             }
-            catch (const std::exception &)
+            catch (const std::exception &e)
             {
-                try
-                {
-                    /* Failed to parse as LoginMessage. Maybe it's an error message? */
-                    const ErrorMessage message = nlohmann::json::parse(*res);
-                    loginFailed(pool, i, false, message.error.errorMessage);
-                }
-                catch (const std::exception &e)
-                {
-                    loginFailed(pool, i, false, "Failed to parse message from pool (" + std::string(e.what()) + ") (" + *res + ")");
-                }
-
+                loginFailed(pool, i, false, std::string(e.what()));
                 continue;
             }
         }
@@ -352,6 +382,8 @@ bool PoolCommunication::tryLogin(const Pool &pool)
 
 void PoolCommunication::managePools()
 {
+    auto lastKeptAlive = std::chrono::high_resolution_clock::now();
+
     while (!m_shouldStop)
     {
         if (m_shouldFindNewPool) {
@@ -361,7 +393,7 @@ void PoolCommunication::managePools()
         /* Most preferred pool = 0, current pool is = current pool index, so if we're
            not connected to the most preferred pool, we step down the list, in
            order of preference, trying to reconnect to each. */
-        for (int poolPreference = 0; poolPreference < m_currentPoolIndex; poolPreference++)
+        for (size_t poolPreference = 0; poolPreference < m_currentPoolIndex; poolPreference++)
         {
             if (m_shouldStop)
             {
@@ -388,9 +420,10 @@ void PoolCommunication::managePools()
         {
             continue;
         }
-        else
+        else if (lastKeptAlive + std::chrono::seconds(120) < std::chrono::high_resolution_clock::now())
         {
             keepAlive();
+            lastKeptAlive = std::chrono::high_resolution_clock::now();
         }
 
         std::unique_lock<std::mutex> lock(m_mutex);
@@ -423,12 +456,13 @@ void PoolCommunication::keepAlive()
     m_socket->sendMessage(pingMsg.dump() + "\n");
 }
 
-std::shared_ptr<IHashingAlgorithm> PoolCommunication::getMiningAlgorithm() const
+void PoolCommunication::updateJobInfoFromPool(Job &job) const
 {
-    return m_currentPool.algorithmGenerator();
+    job.isNiceHash = isNiceHash();
+    job.algorithm = getMiningAlgorithm();
 }
 
-std::string PoolCommunication::getAlgorithmName() const
+std::string PoolCommunication::getMiningAlgorithm() const
 {
     return m_currentPool.algorithm;
 }

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <iostream>
 #include <optional>
 #include <string>
 #include <variant>
@@ -46,6 +45,13 @@ struct Job
     std::optional<uint8_t> rootMajorVersion;
 
     std::optional<uint8_t> rootMinorVersion;
+
+    /* Is this job a nicehash job - Set by the pool config */
+    bool isNiceHash = false;
+
+    /* What is the algorithm required for this pool - Set by the pool config,
+       or by the pool if supported */
+    std::string algorithm;
 
     inline uint32_t *nonce()
     {
@@ -193,19 +199,27 @@ inline void from_json(const nlohmann::json &j, LoginMessage &l)
 {
     from_json(j, static_cast<PoolMessage &>(l));
 
-    if (j.at("id").is_string())
+    if (j.find("id") != j.end())
     {
-        l.ID = j.at("id").get<std::string>();
-    }
-    else
-    {
-        l.ID = std::to_string(j.at("id").get<uint32_t>());
+        if (j.at("id").is_string())
+        {
+            l.ID = j.at("id").get<std::string>();
+        }
+        else
+        {
+            l.ID = std::to_string(j.at("id").get<uint32_t>());
+        }
     }
 
     const auto result = j.at("result");
 
     l.loginID = result.at("id").get<std::string>();
-    l.status = result.at("status").get<std::string>();
+
+    if (result.find("status") != result.end())
+    {
+        l.status = result.at("status").get<std::string>();
+    }
+
     l.job = result.at("job").get<Job>();
 }
 
@@ -221,13 +235,16 @@ inline void from_json(const nlohmann::json &j, ErrorMessage &e)
 {
     from_json(j, static_cast<PoolMessage &>(e));
 
-    if (j.at("id").is_string())
+    if (j.find("id") != j.end())
     {
-        e.ID = j.at("id").get<std::string>();
-    }
-    else
-    {
-        e.ID = std::to_string(j.at("id").get<uint32_t>());
+        if (j.at("id").is_string())
+        {
+            e.ID = j.at("id").get<std::string>();
+        }
+        else
+        {
+            e.ID = std::to_string(j.at("id").get<uint32_t>());
+        }
     }
 
     e.error = j.at("error").get<PoolError>();
@@ -237,13 +254,16 @@ inline void from_json(const nlohmann::json &j, StatusMessage &s)
 {
     from_json(j, static_cast<PoolMessage &>(s));
 
-    if (j.at("id").is_string())
+    if (j.find("id") != j.end())
     {
-        s.ID = j.at("id").get<std::string>();
-    }
-    else
-    {
-        s.ID = std::to_string(j.at("id").get<uint32_t>());
+        if (j.at("id").is_string())
+        {
+            s.ID = j.at("id").get<std::string>();
+        }
+        else
+        {
+            s.ID = std::to_string(j.at("id").get<uint32_t>());
+        }
     }
 
     const auto result = j.at("result");

@@ -14,10 +14,12 @@ namespace Constants
     const int POOL_LOGIN_RETRY_INTERVAL = 5000;
 
     /* The percentage of time to spend mining for the miner developer */
-    const float DEV_FEE_PERCENT = 1.0;
+    const float DEV_FEE_PERCENT = 0.1;
 
     /* Program version */
-    const std::string VERSION = "v0.0.5";
+    const std::string VERSION_NUMBER = "1.0.1";
+
+    const std::string VERSION = "v" + VERSION_NUMBER;
 
     /* Name of config file to look for */
     const std::string CONFIG_FILE_NAME = "config.json";

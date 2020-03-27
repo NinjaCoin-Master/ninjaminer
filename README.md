@@ -1,74 +1,154 @@
-# ninjaminer / violetminer
+# ninjaminer
 
 ![image](https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Argon_discharge_tube.jpg/500px-Argon_discharge_tube.jpg)
 
-A CPU miner for Argon2i, Argon2d, and Argon2id.
+A CPU and NVIDIA miner for NinjaCoin / Ninja / TurtleCoin / Chukwa / Argon2id / WrkzCoin.
 
 #### Master Build Status
 
-[![Build Status](https://travis-ci.org/turtlecoin/violetminer.svg?branch=master)](https://travis-ci.org/turtlecoin/violetminer)
+[![Build Status](https://travis-ci.org/ninjacoin-master/ninjaminer.svg?branch=master)](https://travis-ci.org/ninjacoin-master/ninjaminer)
 
 #### Development Build Status
 
-[![Build Status](https://travis-ci.org/turtlecoin/violetminer.svg?branch=development)](https://travis-ci.org/turtlecoin/violetminer)
+[![Build Status](https://travis-ci.org/ninjacoin-master/ninjaminer.svg?branch=development)](https://travis-ci.org/ninjacoin-master/ninjaminer)
 
 ## Download
 
-[Go here to download the latest release.](https://github.com/NinjaCoin-Master/violetminer/releases/) 
+[Go here to download the latest release.](https://github.com/ninjacoin-master/ninjaminer/releases) 
 
 If you prefer to compile yourself, read on. This can result in increased hashrates in some cases.
+
+If you're an arch user, you can install the [ninjaminer-bin](https://aur.archlinux.org/packages/ninjaminer-bin/) package to get a binary, or install the [ninjaminer-git](https://aur.archlinux.org/packages/ninjaminer-git/) package to get the latest code from the dev branch. Both are available in the AUR.
+
+## Setup / Usage
+
+We suggest you follow the [guide here](https://docs.turtlecoin.lol/guides/mining/ninjaminer-guide) to setup your miner.
 
 ## Algorithms Supported
 * NinjaCoin - choose `ninjacoin` or `ninja`
 * TurtleCoin - choose `turtlecoin` or `chukwa`
 * WrkzCoin - choose `wrkzcoin` or `chukwa_wrkz`
 
+Want the miner to support another argon coin? Open an issue, or even better, open a pull request!
+
 ## Notes
 
 * Supports AVX-512, AVX-2, SSE4.1, SSSE3, SSE2 and NEON optimizations.
-* Pools are tried top to bottom, the lower a pool, the lower it's priority. If we are not connected to the highest priority pool, we will continuously retry connecting to higher priority pools.
+* Supports NVIDIA GPUs.
+* You can set a priority to a pool to determine which ones are tried first. A smaller priority number means we will connect to it first. 0 = highest priority. If we are not connected to the highest priority pool, we will continuously retry connecting to higher priority pools.
+
 * Dev fee is 1%.
 * Supports [xmrig-proxy](https://github.com/xmrig/xmrig-proxy) - Make sure to enable `"niceHash": true` in your pool config.
+* Getting an error about a missing MSVCP140.dll or vcrruntime140.dll? Try installing this: https://www.microsoft.com/en-us/download/details.aspx?id=48145
 
 ## Configuring
 
 There are a couple of ways to configure the miner.
 
-* Just start it, and walk throught the guided setup. Upon completion, the config will be written to `config.json` for modification.
-* Use command line options. Use `violetminer --help` to list them all. It is not recommended to use command line options, as they are less configurable than the config.
+* Just start it, and walk throught the guided setup. Upon completion, the config will be written to `config.json` for modification if desired.
+* Use command line options. Use `ninjaminer --help` to list them all. It is not recommended to use command line options, as they are less configurable than the config. Only `--algorithm`, `--pool`, and `--username` are mandatory.
+
+For example:
+```
+./ninjaminer --algorithm ninjacoin --pool fastpool.xyz.ì:3013 --username Ninja12hMYuJMc8ynM1wZrh2bVnCXxLBuW7ut97CRSVNJuCrGjNWofPfArphtcZEySec97u4dj5awGxxchBCsJZYcCkPec6Bwcq15
+```
+
 * Copy the below config to `config.json` and modify to your purposes.
 
 ```json
 {
-    "optimizationMethod": "Auto",
+    "hardwareConfiguration": {
+        "cpu": {
+            "enabled": true,
+            "optimizationMethod": "Auto",
+            "threadCount": 12
+        },
+        "nvidia": {
+            "devices": [
+                {
+                    "desktopLag": 100.0,
+                    "enabled": true,
+                    "id": 0,
+                    "intensity": 100.0,
+                    "name": "GeForce GTX 1070"
+                }
+            ]
+        }
+    },
     "pools": [
+        {
+            "agent": "LittleNinja",
+            "algorithm": "ninjacoin",
+            "host": "fastpool.xyz",
+            "niceHash": false,
+            "password": "x",
+            "port": 3013,
+            "priority": 2,
+            "rigID": "",
+            "ssl": false,
+            "username": "Ninja12hMYuJMc8ynM1wZrh2bVnCXxLBuW7ut97CRSVNJuCrGjNWofPfArphtcZEySec97u4dj5awGxxchBCsJZYcCkPec6Bwcq15"
+        },
         {
             "agent": "",
             "algorithm": "turtlecoin",
-            "host": "publicnode.ydns.eu",
-            "niceHash": false,
-            "password": "",
-            "port": 4666,
+            "host": "pool.turtle.hashvault.pro",
+            "niceHash": true,
+            "password": "x",
+            "port": 443,
+            "priority": 0,
             "rigID": "",
+            "ssl": true,
             "username": "TRTLv2Fyavy8CXG8BPEbNeCHFZ1fuDCYCZ3vW5H5LXN4K2M2MHUpTENip9bbavpHvvPwb4NDkBWrNgURAd5DB38FHXWZyoBh4wW"
         },
         {
-            "agent": "violetminer-v0.0.3",
-            "algorithm": "wrkzcoin",
-            "host": "139.162.29.140",
+            "agent": "",
+            "algorithm": "wrkz",
+            "host": "fastpool.xyz",
             "niceHash": false,
             "password": "x",
-            "port": 4444,
-            "rigID": "rig1",
+            "port": 3005,
+            "priority": 1,
+            "rigID": "",
+            "ssl": false,
             "username": "WrkzjJMM8h9F8kDU59KUdTN8PvZmzu2HchyBG15R4SjLD4EcMg6qVWo3Qeqp4nNhgh1CPL7ixCL1P4MNwNPr5nTw11ma1MMXr7"
         }
-
-    ],
-    "threadCount": 12
+    ]
 }
 ```
 
-### Optimization method
+### Disabling CPU/GPU/Specific Cards
+
+* If you want to disable CPU mining, either set `enabled` to `false` in the cpu section, or start the miner with the `--disableCPU` flag.
+* If you want to disable Nvidia mining, either set `enabled` to `false` for each card in the nvidia devices section, or start the miner with the `--disableNVIDIA` flag.
+
+* If you want to disable a specific Nvidia or AMD card, just set `enabled` to `false` in the nvidia devices section for the appropriate card.
+
+Note that changing the `name` field does not do anything. It is only there to help you identify which device has which id.
+It's highly recommended that you don't change the `name` or `id` fields, or you may end up with quite a confusing result.
+
+You can always delete your config file, and let the program regenerate it, if you mess up.
+
+### GPU Configuration
+
+#### Intensity
+
+* In addition to enabling and disabling specific cards, you can also configure how many threads and how much memory they use.
+* This is done by altering the `intensity` value in the config.
+* A value of `100` for intensity means the maximum threads and memory will be used.
+* A value of `0` for intensity means no threads and memory will be used.
+* Lower intensities don't neccessarily mean lower hashrate.
+
+#### Desktop Lag
+
+* The `desktopLag` value determines how long we will sleep between kernel launches.
+* The default value of `100` means there are no sleeps between launches.
+* This is appropriate for most setups, where you are just mining.
+* However, if you are mining on your personal PC, and your desktop is quite laggy while mining, you can use this setting to decrease the lags.
+* A value of 100 means maximum desktop lag, a value of 0 means minimum desktop lag.
+* You can see how long we will sleep between launches printed at startup.
+* A lower value of desktop lag means less hashrate, because we launch the hasher kernel less.
+
+### CPU Optimization method
 
 By default, the program will automatically choose the optimization method to use.
 
@@ -107,43 +187,31 @@ Note: On ARMv8, `Auto` uses no optimizations. From my testing, the NEON implemen
 
 ## Compiling
 
+#### Disabling NVIDIA support
+
+Run cmake with the -DENABLE_NVIDIA=OFF flag: `cmake -DENABLE_NVIDIA=OFF ..`
+
 ### Windows
 
-- Download the [Build Tools for Visual Studio 2019](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=16) Installer
-- When it opens up select **C++ build tools**, it automatically selects the needed parts
-<!---
-- Install the latest full version of OpenSSL if you want to compile with SSL support. (currently OpenSSL 1.1.1c). Select the appropriate version for your system:
-  - [OpenSSL 64-bit](https://slproweb.com/download/Win64OpenSSL-1_1_1c.exe)
-  - [OpenSSL 32-bit](https://slproweb.com/download/Win32OpenSSL-1_1_1c.exe)
-  -->
-
-For 64-bit:
+- Download and install CUDA from here: https://developer.nvidia.com/cuda-downloads (This step is only if you want Nvidia support.)
+- Download the [Build Tools for Visual Studio 2019](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=16) Installer.
+- When it opens up select **C++ build tools**, it automatically selects the needed parts.
 - From the start menu, open 'x64 Native Tools Command Prompt for VS 2019'.
-- `git clone https://github.com/turtlecoin/violetminer`
-- `cd violetminer`
+- `cd C:/` (Or your directory of choice)
+- `git clone https://github.com/ninjacoin-master/ninjaminer`
+- `cd ninjaminer`
 - `git submodule update --init --recursive`
 - `mkdir build`
 - `cd build`
-- `cmake -G "Visual Studio 16 2019" -A x64`
-- `MSBuild violetminer.sln /p:Configuration=Release /m`
-
-For 32-bit:
-- From the start menu, open 'x86 Native Tools Command Prompt for VS 2019'.
-- `git clone https://github.com/turtlecoin/violetminer`
-- `cd violetminer`
-- `git submodule update --init --recursive`
-- `mkdir build`
-- `cd build`
-- `cmake -G "Visual Studio 16 2019" -A Win32 ..`
-- `MSBuild violetminer.sln /p:Configuration=Release /p:Platform=Win32 /m` 
+- `cmake -G "Visual Studio 16 2019" -A x64 ..`
+- `MSBuild ninjaminer.sln /p:Configuration=Release /m`
 
 ### Linux
 
-**If you are on x86-64 (If you're not sure, you almost certainly are) It's highly recommended to use Clang to compile. It gets better hashrate for many people.**
-
-For example, I get 7300h/s with GCC, and 10200h/s with Clang on a Ryzen 1600.
-
-If you're on ARM however, GCC gets slightly better hashrate.
+* It's recommended to use Clang to compile. It gets better CPU hashrate for many people.
+* If you're on ARM however, GCC gets slightly better hashrate.
+* You will need to install CUDA if you want Nvidia support, which is somewhat out of the scope of this document. 
+* You can find the CUDA binaries for linux here: https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64
 
 #### Ubuntu, using Clang
 
@@ -167,8 +235,8 @@ You need to modify the below command for your version of ubuntu - see https://ap
 - `sudo pip install cmake`
 - `export CC=clang-6.0`
 - `export CXX=clang++-6.0`
-- `git clone https://github.com/turtlecoin/violetminer`
-- `cd violetminer`
+- `git clone https://github.com/ninjacoin-master/ninjaminer`
+- `cd ninjaminer`
 - `git submodule update --init --recursive`
 - `mkdir build`
 - `cd build`
@@ -184,8 +252,8 @@ You need to modify the below command for your version of ubuntu - see https://ap
 - `sudo pip install cmake`
 - `export CC=gcc-8`
 - `export CXX=g++-8`
-- `git clone https://github.com/turtlecoin/violetminer`
-- `cd violetminer`
+- `git clone https://github.com/ninjacoin-master/ninjaminer`
+- `cd ninjaminer`
 - `git submodule update --init --recursive`
 - `mkdir build`
 - `cd build`
@@ -196,13 +264,30 @@ You need to modify the below command for your version of ubuntu - see https://ap
 
 Reminder to use clang if possible. Make sure to set `CC` and `CXX` to point to `clang` and `clang++` as seen in the Ubuntu instructions.
 
-- `git clone https://github.com/turtlecoin/violetminer`
-- `cd violetminer`
+- `git clone https://github.com/ninjacoin-master/ninjaminer`
+- `cd ninjaminer`
 - `git submodule update --init --recursive`
 - `mkdir build`
 - `cd build`
 - `cmake ..`
 - `make`
+
+### Android with Termux
+
+- `pkg install cmake clang git` (Enter `y` to confirm the install)
+- `git clone https://github.com/ninjacoin-master/ninjaminer`
+- `cd ninjaminer`
+- `git submodule update --init --recursive`
+- `mkdir build`
+- `cd build`
+- `cmake -DENABLE_NVIDIA=OFF ..`
+- `make`
+
+Or, if you hate typing and just want something to copy paste, try this single command:
+
+```
+cd && rm -Rf ninjaminer && apt-get update && pkg update -y && pkg install cmake clang git -y && git clone https://github.com/ninjacoin-master/ninjaminer && mkdir ninjaminer/build && cd ninjaminer/ && git submodule update --init --recursive && cd build/ && cmake -DENABLE_NVIDIA=OFF .. && make
+```
 
 ### Android Cross Compile
 
@@ -217,8 +302,8 @@ ANDROID_ABI can be
 
 Set this depending on the architecture of the phone you want to run it on.
 
-- `git clone https://github.com/turtlecoin/violetminer`
-- `cd violetminer`
+- `git clone https://github.com/ninjacoin-master/ninjaminer`
+- `cd ninjaminer`
 - `git submodule update --init --recursive`
 - `mkdir build`
 - `cd build`

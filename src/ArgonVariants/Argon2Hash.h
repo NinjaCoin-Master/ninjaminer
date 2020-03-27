@@ -23,6 +23,10 @@ class Argon2Hash : virtual public IHashingAlgorithm
 
     virtual std::vector<uint8_t> hash(std::vector<uint8_t> &input);
 
+    uint32_t getMemory() { return m_memory; };
+    
+    uint32_t getIterations() { return m_time; };
+
   private:
 
     Argon2 m_argonInstance;
@@ -30,4 +34,8 @@ class Argon2Hash : virtual public IHashingAlgorithm
     const uint32_t m_saltLength;
 
     std::vector<uint8_t> m_salt;
+
+    uint32_t m_memory;
+
+    uint32_t m_time;
 };

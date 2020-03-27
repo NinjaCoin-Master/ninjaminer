@@ -1,10 +1,21 @@
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Argon2/src")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
+
+if (ENABLE_NVIDIA)
+    # Only include directories if any were found
+    if (NOT "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}" STREQUAL "")
+        include_directories("${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
+    endif()
+endif()
 
 # Add the ArgonVariants directory to add that library
 add_subdirectory(ArgonVariants)
 
 # Add the Argon2 directory to add that library
 add_subdirectory(Argon2)
+
+# Add the Backend directory to add that library
+add_subdirectory(Backend)
 
 # Add the Config directory to add that library
 add_subdirectory(Config)
@@ -23,21 +34,3 @@ add_subdirectory(Types)
 
 # Add the Utilities directory to add that library
 add_subdirectory(Utilities)
-
-# Add the current directory as an include directory for ArgonVariants
-target_include_directories(ArgonVariants PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-
-# Add the current directory as an include directory for Config
-target_include_directories(Config PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-
-# Add the current directory as an include directory for MinerManager
-target_include_directories(MinerManager PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-
-# Add the current directory as an include directory for PoolCommunication
-target_include_directories(PoolCommunication PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-
-# Add the current directory as an include directory for Types
-target_include_directories(Types PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-
-# Add the current directory as an include directory for Utilities
-target_include_directories(Utilities PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

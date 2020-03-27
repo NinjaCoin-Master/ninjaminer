@@ -31,6 +31,8 @@ Argon2Hash::Argon2Hash(
     const uint32_t saltLength,
     const Constants::ArgonVariant variant):
     m_argonInstance(variant, {}, {}, iterations, memoryKB, threads, 32, Config::config.optimizationMethod),
-    m_saltLength(saltLength)
+    m_saltLength(saltLength),
+    m_memory(memoryKB),
+    m_time(iterations)
 {
 }

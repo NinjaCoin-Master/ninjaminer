@@ -25,6 +25,8 @@ namespace Utilities
 
     void toHex(const unsigned char *input, char *output, size_t inputLength);
 
+    std::string toHex(const uint8_t *input, size_t inputLength);
+
     std::string toHex(const uint32_t &input);
 
     std::string toHex(const std::vector<uint8_t> &input);

@@ -10,17 +10,69 @@
 #include <sstream>
 #include <iomanip>
 
+#include "Backend/CPU/CPU.h"
+#include "Types/JobSubmit.h"
 #include "Utilities/ColouredMsg.h"
 #include "Utilities/Utilities.h"
 
+#if defined(NVIDIA_ENABLED)
+#include "Backend/Nvidia/Nvidia.h"
+#endif
+
 MinerManager::MinerManager(
     const std::shared_ptr<PoolCommunication> pool,
-    const uint32_t threadCount):
+    const std::shared_ptr<HardwareConfig> hardwareConfig,
+    const bool areDevPool):
     m_pool(pool),
-    m_threadCount(threadCount),
     m_hashManager(pool),
+    m_hardwareConfig(hardwareConfig),
     m_gen(m_device())
 {
+    const auto submit = [this](const JobSubmit &jobSubmit)
+    {
+        m_hashManager.submitHash(jobSubmit);
+    };
+
+    if (hardwareConfig->cpu.enabled)
+    {
+        m_enabledBackends.push_back(std::make_shared<CPU>(hardwareConfig, submit));
+    }
+    else if (!areDevPool)
+    {
+        std::cout << WarningMsg("CPU mining disabled.") << std::endl;
+    }
+
+    const bool allNvidiaGPUsDisabled = std::none_of(
+        hardwareConfig->nvidia.devices.begin(),
+        hardwareConfig->nvidia.devices.end(),
+        [](const auto device)
+        {
+            return device.enabled;
+        }
+    );
+
+    #if defined(NVIDIA_ENABLED)
+    const auto submitValid = [this](const JobSubmit &jobSubmit)
+    {
+        m_hashManager.submitValidHash(jobSubmit);
+    };
+
+    const auto increment = [this](const uint32_t hashesPerformed, const std::string &deviceName)
+    {
+        m_hashManager.incrementHashesPerformed(hashesPerformed, deviceName);
+    };
+
+    if (!allNvidiaGPUsDisabled)
+    {
+        m_enabledBackends.push_back(
+            std::make_shared<Nvidia>(hardwareConfig, submitValid, increment)
+        );
+    }
+    else if (!areDevPool)
+    {
+        std::cout << WarningMsg("No Nvidia GPUs available, or all disabled, not starting Nvidia mining") << std::endl;
+    }
+    #endif
 }
 
 MinerManager::~MinerManager()
@@ -31,15 +83,32 @@ MinerManager::~MinerManager()
 void MinerManager::setNewJob(const Job &job)
 {
     /* Set new nonce */
-    m_nonce = m_distribution(m_gen);
+    const uint32_t nonce = m_distribution(m_gen);
 
-    /* Update stored job */
-    m_currentJob = job;
-
-    /* Indicate to each thread that there's a new job */
-    for (int i = 0; i < m_newJobAvailable.size(); i++)
+    if (job.algorithm != m_currentAlgorithm)
     {
-        m_newJobAvailable[i] = true;
+        m_currentAlgorithm = job.algorithm;
+
+        for (auto &gpu : m_hardwareConfig->nvidia.devices)
+        {
+            if (gpu.enabled)
+            {
+                gpu.checkedIn = false;
+            }
+        }
+
+        for (auto &gpu : m_hardwareConfig->amd.devices)
+        {
+            if (gpu.enabled)
+            {
+                gpu.checkedIn = false;
+            }
+        }
+    }
+
+    for (auto &backend : m_enabledBackends)
+    {
+        backend->setNewJob(job, nonce);
     }
 
     m_pool->printPool();
@@ -50,7 +119,7 @@ void MinerManager::setNewJob(const Job &job)
 
 void MinerManager::start()
 {
-    if (!m_threads.empty() || m_statsThread.joinable())
+    if (m_statsThread.joinable())
     {
         stop();
     }
@@ -69,6 +138,14 @@ void MinerManager::start()
 
     /* Start mining when we connect to a pool */
     m_pool->onPoolSwapped([this](const Pool &newPool){
+
+        /* New pool, accepted/submitted count no longer applies */
+        if (newPool != m_currentPool) {
+            m_hashManager.resetShareCount();
+        }
+
+        m_currentPool = newPool;
+
         resumeMining();
     });
 
@@ -83,7 +160,7 @@ void MinerManager::start()
 
 void MinerManager::resumeMining()
 {
-    if (!m_threads.empty())
+    if (m_statsThread.joinable())
     {
         pauseMining();
     }
@@ -92,25 +169,21 @@ void MinerManager::resumeMining()
 
     std::cout << WhiteMsg("Resuming mining.") << std::endl;
 
-    m_currentJob = m_pool->getJob();
+    const auto job = m_pool->getJob();
 
     m_pool->printPool();
-    std::cout << WhiteMsg("New job, diff ") << WhiteMsg(m_currentJob.shareDifficulty) << std::endl;
+    std::cout << WhiteMsg("New job, diff ") << WhiteMsg(job.shareDifficulty) << std::endl;
 
     /* Set initial nonce */
-    m_nonce = m_distribution(m_gen);
+    const uint32_t nonce = m_distribution(m_gen);
 
-    /* Indicate that there's no new jobs available to other threads */
-    m_newJobAvailable = std::vector<bool>(m_threadCount, false);
- 
-    /* Launch off the miner threads */
-    for (uint32_t i = 0; i < m_threadCount; i++)
+    for (auto &backend : m_enabledBackends)
     {
-        m_threads.push_back(std::thread(&MinerManager::hash, this, i));
+        backend->start(job, nonce);
     }
 
     /* Launch off the thread to print stats regularly */
-    m_statsThread = std::thread(&MinerManager::printStats, this);
+    m_statsThread = std::thread(&MinerManager::statPrinter, this);
 }
 
 void MinerManager::pauseMining()
@@ -119,49 +192,31 @@ void MinerManager::pauseMining()
 
     m_shouldStop = true;
 
-    for (int i = 0; i < m_threadCount; i++)
+    for (auto &backend : m_enabledBackends)
     {
-        m_newJobAvailable[i] = true;
+        backend->stop();
     }
 
-    /* Wait for all the threads to stop */
-    for (auto &thread : m_threads)
-    {
-        if (thread.joinable())
-        {
-            thread.join();
-        }
-    }
+    /* Pause the hashrate calculator */
+    m_hashManager.pause();
 
     if (m_statsThread.joinable())
     {
         m_statsThread.join();
     }
-
-    /* Empty the threads vector for later re-creation */
-    m_threads.clear();
 }
 
 void MinerManager::stop()
 {
     m_shouldStop = true;
 
-    for (int i = 0; i < m_newJobAvailable.size(); i++)
+    for (auto &backend : m_enabledBackends)
     {
-        m_newJobAvailable[i] = true;
+        backend->stop();
     }
 
-    /* Wait for all the threads to stop */
-    for (auto &thread : m_threads)
-    {
-        if (thread.joinable())
-        {
-            thread.join();
-        }
-    }
-
-    /* Empty the threads vector for later re-creation */
-    m_threads.clear();
+    /* Pause the hashrate calculator */
+    m_hashManager.pause();
 
     /* Wait for the stats thread to stop */
     if (m_statsThread.joinable())
@@ -176,76 +231,18 @@ void MinerManager::stop()
     }
 }
 
-void MinerManager::hash(uint32_t threadNumber)
-{
-    std::shared_ptr<IHashingAlgorithm> algorithm = m_pool->getMiningAlgorithm();
-
-    const bool isNiceHash = m_pool->isNiceHash();
-
-    /* Let the algorithm perform any necessary initialization */
-    algorithm->init(m_currentJob.rawBlob);
-
-    while (!m_shouldStop)
-    {
-        /* Offset the nonce by our thread number so each thread has an individual
-           nonce */
-        uint32_t localNonce = m_nonce + threadNumber;
-
-        Job job = m_currentJob;
-
-        /* If nicehash mode is enabled, we are only allowed to alter 3 bytes
-           in the nonce, instead of four. The first byte is reserved for nicehash
-           to do with as they like.
-           To achieve this, we wipe the top byte (localNonce & 0x00FFFFFF) of
-           local nonce. We then wipe the bottom 3 bytes of job.nonce
-           (*job.nonce() & 0xFF000000). Finally, we AND them together, so the
-           top byte of the nonce is reserved for nicehash.
-           See further https://github.com/nicehash/Specifications/blob/master/NiceHash_CryptoNight_modification_v1.0.txt
-           Note that the above specification indicates that the final byte of
-           the nonce is reserved, but in fact it is the first byte that is 
-           reserved. */
-        if (isNiceHash)
-        {
-            *job.nonce() = (localNonce & 0x00FFFFFF) | (*job.nonce() & 0xFF000000);
-        }
-        else
-        {
-            *job.nonce() = localNonce;
-        }
-
-        /* Allow the algorithm to reinitialize for the new round, as some algorithms
-           can avoid reinitializing each round. For example, we can calculate
-           the salt once per job, and cache it. */
-        algorithm->reinit(job.rawBlob);
-
-        while (!m_newJobAvailable[threadNumber])
-        {
-            const auto hash = algorithm->hash(job.rawBlob);
-
-            m_hashManager.submitHash(hash, job.jobID, *job.nonce(), job.target);
-
-            localNonce += m_threadCount;
-
-            if (isNiceHash)
-            {
-                *job.nonce() = (localNonce & 0x00FFFFFF) | (*job.nonce() & 0xFF000000);
-            }
-            else
-            {
-                *job.nonce() = localNonce;
-            }
-        }
-
-        /* Switch to new job. */
-        m_newJobAvailable[threadNumber] = false;
-    }
-}
-
 void MinerManager::printStats()
 {
+    m_hashManager.printStats();
+}
+
+void MinerManager::statPrinter()
+{
+    m_hashManager.start();
+
     while (!m_shouldStop)
     {
         Utilities::sleepUnlessStopping(std::chrono::seconds(20), m_shouldStop);
-        m_hashManager.printStats();
+        printStats();
     }
 }

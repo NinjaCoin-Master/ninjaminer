@@ -1,6 +1,7 @@
 # Add the files we want to link against
 set(utilities_source_files
     Console.cpp
+    GetChar.cpp
     Input.cpp
     String.cpp
     Utilities.cpp

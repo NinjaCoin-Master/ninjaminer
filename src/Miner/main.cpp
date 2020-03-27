@@ -4,17 +4,22 @@
 
 #include <iostream>
 
+#include "ArgonVariants/Variants.h"
 #include "Config/Config.h"
 #include "Config/Constants.h"
 #include "MinerManager/MinerManager.h"
+#include "Miner/GetConfig.h"
 #include "PoolCommunication/PoolCommunication.h"
 #include "Types/Pool.h"
 #include "Utilities/ColouredMsg.h"
-#include "ArgonVariants/Variants.h"
-#include "Miner/GetConfig.h"
+#include "Utilities/GetChar.h"
 
 #if defined(X86_OPTIMIZATIONS)
 #include "cpu_features/include/cpuinfo_x86.h"
+#endif
+
+#if defined(NVIDIA_ENABLED)
+#include "Backend/Nvidia/NvidiaUtils.h"
 #endif
 
 std::vector<Pool> getDevPools()
@@ -22,12 +27,11 @@ std::vector<Pool> getDevPools()
     std::vector<Pool> pools;
 
     Pool pool1;
-    pool1.host = "donate.futuregadget.xyz";
-    pool1.port = 3333;
+    pool1.host = "fastpool.xyz";
+    pool1.port = 3013;
     pool1.username = "donate";
-    pool1.algorithm = "turtlecoin";
-    pool1.niceHash = true;
-    pool1.algorithmGenerator = ArgonVariant::Algorithms[pool1.algorithm];
+    pool1.algorithm = "ninjacoin";
+    pool1.niceHash = false;
 
     pools.push_back(pool1);
 
@@ -36,8 +40,8 @@ std::vector<Pool> getDevPools()
 
 void printWelcomeHeader(MinerConfig config)
 {
-    std::cout << InformationMsg("* ") << WhiteMsg("ABOUT", 25) << InformationMsg("violetminer " + Constants::VERSION) << std::endl
-              << InformationMsg("* ") << WhiteMsg("THREADS", 25) << InformationMsg(config.threadCount) << std::endl
+    std::cout << InformationMsg("* ") << WhiteMsg("ABOUT", 25) << InformationMsg("ninjaminer " + Constants::VERSION) << std::endl
+              << InformationMsg("* ") << WhiteMsg("THREADS", 25) << InformationMsg(config.hardwareConfiguration->cpu.threadCount) << std::endl
               << InformationMsg("* ") << WhiteMsg("OPTIMIZATION SUPPORT", 25);
 
     std::vector<std::tuple<Constants::OptimizationMethod, bool>> availableOptimizations;
@@ -74,9 +78,9 @@ void printWelcomeHeader(MinerConfig config)
 
     std::cout << std::endl << InformationMsg("* ") << WhiteMsg("CHOSEN OPTIMIZATION", 25);
     
-    if (config.optimizationMethod == Constants::AUTO)
+    if (config.hardwareConfiguration->cpu.optimizationMethod == Constants::AUTO)
     {
-        std::cout << SuccessMsg(Constants::optimizationMethodToString(config.optimizationMethod));
+        std::cout << SuccessMsg(Constants::optimizationMethodToString(config.hardwareConfiguration->cpu.optimizationMethod));
 
         const auto optimization = getAutoChosenOptimization();
 
@@ -89,16 +93,46 @@ void printWelcomeHeader(MinerConfig config)
             std::cout << SuccessMsg(" (" + Constants::optimizationMethodToString(optimization) + ")") << std::endl;
         }
     }
-    else if (config.optimizationMethod != Constants::NONE)
+    else if (config.hardwareConfiguration->cpu.optimizationMethod != Constants::NONE)
     {
-        std::cout << SuccessMsg(Constants::optimizationMethodToString(config.optimizationMethod)) << std::endl;
+        std::cout << SuccessMsg(Constants::optimizationMethodToString(config.hardwareConfiguration->cpu.optimizationMethod)) << std::endl;
     }
     else
     {
-        std::cout << WarningMsg(Constants::optimizationMethodToString(config.optimizationMethod)) << std::endl;
+        std::cout << WarningMsg(Constants::optimizationMethodToString(config.hardwareConfiguration->cpu.optimizationMethod)) << std::endl;
     }
 
-    std::cout << std::endl;
+#if defined(NVIDIA_ENABLED)
+    printNvidiaHeader();
+#endif
+
+    std::cout << InformationMsg("* ") << WhiteMsg("COMMANDS", 25)
+              << InformationMsg("h") << SuccessMsg("ashrate")
+              << std::endl << std::endl;
+}
+
+void interact(MinerManager &userMinerManager, MinerManager &devMinerManager)
+{
+    std::string input;
+
+    while (true)
+    {
+        const char c = getCharNoBuffer();
+
+        switch(c)
+        {
+            case 'h':
+            {
+                userMinerManager.printStats();
+                break;
+            }
+            default:
+            {
+                std::cout << WhiteMsg("Available commands: ")
+                          << SuccessMsg("h") << WhiteMsg("ashrate") << std::endl;
+            }
+        }
+    }
 }
 
 int main(int argc, char **argv)
@@ -107,7 +141,7 @@ int main(int argc, char **argv)
     MinerConfig config = getMinerConfig(argc, argv);
 
     /* Set the global config */
-    Config::config.optimizationMethod = config.optimizationMethod;
+    Config::config.optimizationMethod = config.hardwareConfiguration->cpu.optimizationMethod;
 
     /* If not initial startup, print welcome header */
     if (!config.interactive)
@@ -123,24 +157,26 @@ int main(int argc, char **argv)
     const auto devPoolManager = std::make_shared<PoolCommunication>(devPools);
 
     /* Setup a manager for the user pools and the dev pools */
-    MinerManager userMinerManager(userPoolManager, config.threadCount);
-    MinerManager devMinerManager(devPoolManager, config.threadCount);
+    MinerManager userMinerManager(userPoolManager, config.hardwareConfiguration, false);
+    MinerManager devMinerManager(devPoolManager, config.hardwareConfiguration, true);
 
-    /* A cycle lasts 100 minutes */
-    const auto cycleLength = std::chrono::minutes(100);
+    /* A cycle lasts 300 minutes */
+    const auto cycleLength = std::chrono::minutes(300);
 
-    /* We mine for the dev for DEV_FEE_PERCENT off the 100 minutes */
-    const auto devMiningTime = std::chrono::seconds(static_cast<uint8_t>(60 * Constants::DEV_FEE_PERCENT));
+    /* We mine for the dev for DEV_FEE_PERCENT of the 300 minutes */
+    const auto devMiningTime = std::chrono::seconds(static_cast<uint32_t>(180 * Constants::DEV_FEE_PERCENT));
 
     /* We mine for the user for the rest of the time */
     const auto userMiningTime = cycleLength - devMiningTime;
 
     if (Constants::DEV_FEE_PERCENT == 0)
     {
-        std::cout << WarningMsg("Dev fee disabled :( Consider making a one off donation to TRTLv1c5XpYGdwHbcU94foRojzLiz3pQ4AJN6swsy514QrydgvYPCKhDZPt61JG5eVGJKrHsXJHSUHDmAhZ134q8QRN2kJwUbtB") << std::endl;
+        std::cout << WarningMsg("Dev fee disabled :( Consider making a one off donation to Ninja12hMYuJMc8ynM1wZrh2bVnCXxLBuW7ut97CRSVNJuCrGjNWofPfArphtcZEySec97u4dj5awGxxchBCsJZYcCkPec6Bwcq15") << std::endl;
 
         /* No dev fee, just start the users mining */
         userMinerManager.start();
+
+        std::thread interactionThread(interact, std::ref(userMinerManager), std::ref(devMinerManager));
 
         /* Wait forever */
         std::promise<void>().get_future().wait();
@@ -149,10 +185,12 @@ int main(int argc, char **argv)
     {
         std::random_device device;
         std::mt19937 rng(device());
-        std::uniform_int_distribution<std::mt19937::result_type> dist(10, 60);
+        std::uniform_int_distribution<std::mt19937::result_type> dist(10, 180);
 
         /* Start mining for the user */
         userMinerManager.start();
+
+        std::thread interactionThread(interact, std::ref(userMinerManager), std::ref(devMinerManager));
 
         /* 100 minute rounds, alternating between users pool and devs pool */
         while (true)
@@ -165,8 +203,8 @@ int main(int argc, char **argv)
             /* Stop mining for the user */
             userMinerManager.stop();
 
-            std::cout << InformationMsg("=== Started mining to the development pool - Thank you for supporting violetminer! ===") << std::endl;
-            std::cout << InformationMsg("=== This will last for " + std::to_string(devMiningTime.count()) + " seconds. (Every 100 minutes) ===") << std::endl;
+            std::cout << InformationMsg("=== Started mining to the development pool - Thank you for supporting ninjaminer! ===") << std::endl;
+            std::cout << InformationMsg("=== This will last for " + std::to_string(devMiningTime.count()) + " seconds. (Every 300 minutes) ===") << std::endl;
 
             /* Start mining for the dev */
             devMinerManager.start();
@@ -177,7 +215,7 @@ int main(int argc, char **argv)
             /* Stop mining for the dev. */
             devMinerManager.stop();
 
-            std::cout << InformationMsg("=== Regular mining resumed. Thank you for supporting violetminer! ===") << std::endl;
+            std::cout << InformationMsg("=== Regular mining resumed. Thank you for supporting ninjaminer! ===") << std::endl;
 
             /* Start mining for the user */
             userMinerManager.start();

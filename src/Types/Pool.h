@@ -5,22 +5,27 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
 #include <string>
 
 #include "ArgonVariants/Variants.h"
 #include "Config/Constants.h"
 #include "ExternalLibs/json.hpp"
 #include "Types/IHashingAlgorithm.h"
+#include "Utilities/ColouredMsg.h"
 
 struct Pool
 {
     /* Host of the pool */
+    /* Required */
     std::string host;
 
     /* Port of the pool */
+    /* Required */
     uint16_t port;
 
     /* Username to login with */
+    /* Required */
     std::string username;
 
     /* Optional password to login with */
@@ -30,6 +35,7 @@ struct Pool
     std::string rigID;
 
     /* The mining algorithm to use with this pool */
+    /* Required */
     std::string algorithm;
 
     /* Custom user agent */
@@ -41,12 +47,33 @@ struct Pool
     /* Whether to use nicehash style nonces */
     bool niceHash = false;
 
-    /* Gets an instance of the mining algorithm used for this pool */
-    std::function<std::shared_ptr<IHashingAlgorithm>(void)> algorithmGenerator;
+    /* The priority of this pool in the list of pools */
+    size_t priority = 0;
 
-    inline std::string getAgent() const
+    /* Does this pool require SSL for connecting */
+    bool ssl = false;
+
+    std::string getAgent() const
     {
-        return agent == "" ? "violetminer-" + Constants::VERSION : agent;
+        return agent == "" ? "ninjaminer/" + Constants::VERSION_NUMBER : agent;
+    }
+
+    bool operator==(const Pool& other) const
+    {
+        return host         == other.host
+            && port         == other.port
+            && username     == other.username
+            && password     == other.password
+            && rigID        == other.rigID
+            && algorithm    == other.algorithm
+            && agent        == other.agent
+            && loginID      == other.loginID
+            && ssl          == other.ssl;
+    }
+
+    bool operator!=(const Pool& other) const
+    {
+        return !operator==(other);
     }
 };
 
@@ -60,7 +87,9 @@ inline void to_json(nlohmann::json &j, const Pool &pool)
         {"rigID", pool.rigID},
         {"algorithm", pool.algorithm},
         {"agent", pool.agent},
-        {"niceHash", pool.niceHash}
+        {"niceHash", pool.niceHash},
+        {"priority", pool.priority},
+        {"ssl", pool.ssl}
     };
 }
 
@@ -82,14 +111,14 @@ inline void from_json(const nlohmann::json &j, Pool &pool)
 
     pool.algorithm = j.at("algorithm").get<std::string>();
 
-    const auto it = ArgonVariant::Algorithms.find(pool.algorithm);
-
-    if (it == ArgonVariant::Algorithms.end())
+    try
+    {
+        ArgonVariant::algorithmNameToCanonical(pool.algorithm);
+    }
+    catch (const std::exception &)
     {
         throw std::invalid_argument("Algorithm \"" + pool.algorithm + "\" is not a known algorithm!");
     }
-
-    pool.algorithmGenerator = it->second;
 
     if (j.find("agent") != j.end())
     {
@@ -99,5 +128,23 @@ inline void from_json(const nlohmann::json &j, Pool &pool)
     if (j.find("niceHash") != j.end())
     {
         pool.niceHash = j.at("niceHash").get<bool>();
+    }
+
+    if (j.find("priority") != j.end())
+    {
+        pool.priority = j.at("priority").get<size_t>();
+    }
+
+    if (j.find("ssl") != j.end())
+    {
+        pool.ssl = j.at("ssl").get<bool>();
+
+        #if !defined(SOCKETWRAPPER_OPENSSL_SUPPORT)
+        if (pool.ssl)
+        {
+            std::cout << WarningMsg("Warning: SSL is enabled for pool " + pool.host + ", but miner was not compiled with SSL support!") << std::endl
+                      << WarningMsg("If this pool is indeed SSL only, connecting will fail. Try another port or compile with SSL support.") << std::endl;
+        }
+        #endif
     }
 }
