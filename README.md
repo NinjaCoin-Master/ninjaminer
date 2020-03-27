@@ -50,7 +50,7 @@ There are a couple of ways to configure the miner.
 
 For example:
 ```
-./ninjaminer --algorithm ninjacoin --pool fastpool.xyz.ì:3013 --username Ninja12hMYuJMc8ynM1wZrh2bVnCXxLBuW7ut97CRSVNJuCrGjNWofPfArphtcZEySec97u4dj5awGxxchBCsJZYcCkPec6Bwcq15
+./ninjaminer --algorithm ninjacoin --pool fastpool.xyz:3013 --username Ninja12hMYuJMc8ynM1wZrh2bVnCXxLBuW7ut97CRSVNJuCrGjNWofPfArphtcZEySec97u4dj5awGxxchBCsJZYcCkPec6Bwcq15
 ```
 
 * Copy the below config to `config.json` and modify to your purposes.
