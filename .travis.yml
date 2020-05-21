@@ -19,7 +19,7 @@ matrix:
     env:
     - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
     - LABEL="linux-g++-8"
-    - RELEASE_FILENAME="violetminer-linux"
+    - RELEASE_FILENAME="ninjaminer-linux"
     - RELEASE_FILETYPE="tar.gz"
     - CUDA_SUPPORT="ON"
     - CUDA_PATH="/usr/local/cuda"
@@ -57,7 +57,7 @@ matrix:
     env:
     - MATRIX_EVAL="CC=clang-8 && CXX=clang++-8"
     - LABEL="linux"
-    - RELEASE_FILENAME="violetminer-linux"
+    - RELEASE_FILENAME="ninjaminer-linux"
     - RELEASE_FILETYPE="tar.gz"
     - _DEPLOYABLE="true"
     - CUDA_SUPPORT="ON"
@@ -87,7 +87,7 @@ matrix:
     compiler: clang
     env:
     - LABEL="osx"
-    - RELEASE_FILENAME="violetminer-osx"
+    - RELEASE_FILENAME="ninjaminer-osx"
     - RELEASE_FILETYPE="tar.gz"
     - _DEPLOYABLE="true"
     - CUDA_SUPPORT="ON"
@@ -120,7 +120,7 @@ matrix:
     env:
     - MATRIX_EVAL="CC=aarch64-linux-gnu-gcc && CXX=aarch64-linux-gnu-g++"
     - LABEL="aarch64"
-    - RELEASE_FILENAME="violetminer-armv8"
+    - RELEASE_FILENAME="ninjaminer-armv8"
     - RELEASE_FILETYPE="tar.gz"
     - _DEPLOYABLE="true"
     - CUDA_SUPPORT="OFF"
@@ -130,7 +130,7 @@ matrix:
     env:
     - LABEL="windows"
     - MSBUILD_PATH="/C/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/MSBuild/15.0/Bin"
-    - RELEASE_FILENAME="violetminer-win64"
+    - RELEASE_FILENAME="ninjaminer-win64"
     - RELEASE_FILETYPE="zip"
     - _DEPLOYABLE="true"
     - CUDA_VER="10.1"
@@ -145,7 +145,7 @@ matrix:
     - cd build
     - cd Release
     - mkdir $RELEASE_FILENAME
-    - cp violetminer.exe $RELEASE_FILENAME
+    - cp ninjaminer.exe $RELEASE_FILENAME
     - 7z a $RELEASE_FILENAME.$RELEASE_FILETYPE $RELEASE_FILENAME
 
 before_install:
@@ -161,7 +161,7 @@ script:
 - make -j2
 - if [[ "$LABEL" != "aarch64" ]]; then ./argon2-cpp-test ; fi
 - mkdir $RELEASE_FILENAME
-- mv violetminer $RELEASE_FILENAME
+- mv ninjaminer $RELEASE_FILENAME
 - tar cvfz $RELEASE_FILENAME.tar.gz $RELEASE_FILENAME
 
 deploy:

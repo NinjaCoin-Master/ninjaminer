@@ -408,7 +408,7 @@ Pool getPool()
     while (true)
     {
         std::cout << InformationMsg("Enter the pool address to mine to.") << std::endl
-                  << InformationMsg("This should look something like fastpool.xyz:3013: ");
+                  << InformationMsg("This should look something like pool.ninjanode.net:3013 ");
 
         std::string address;
         std::string host;

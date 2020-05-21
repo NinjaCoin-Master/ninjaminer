@@ -15,9 +15,8 @@ namespace ArgonVariant
 {
     enum Algorithm
     {
-		Ninja,
         Chukwa,
-        ChukwaWrkz
+        Ninja
     };
 
     /* Mapping from all the possible algorithm names under the sun to the
@@ -28,27 +27,18 @@ namespace ArgonVariant
        name when listing available algorithms. */
     inline std::vector<std::tuple<std::string, Algorithm, bool>> algorithmNameMapping
     {
-        /* NINJA */
-        { "ninja",           Ninja, true  },
-        { "ninjacoin",       Ninja, true  },
-        { "ninja coin",      Ninja, false },
-        { "argon2/ninja",    Ninja, false },
-        { "argon2id/ninja",  Ninja, false },
-
-        /* CHUKWA WRKZ */
-        { "chukwa_wrkz",    ChukwaWrkz, true  },
-        { "wrkzcoin",       ChukwaWrkz, true  },
-        { "wrkz",           ChukwaWrkz, false },
-        { "argon2/wrkz",    ChukwaWrkz, false },
-        { "chukwa/wrkz",    ChukwaWrkz, false },
-		
-		        /* CHUKWA */
-        { "chukwa",         Chukwa, true  },
-        { "turtlecoin",     Chukwa, true  },
+        /* CHUKWA */
+        { "chukwa",         Chukwa, false  },
+        { "turtlecoin",     Chukwa, false  },
         { "trtl",           Chukwa, false },
         { "argon2",         Chukwa, false },
         { "argon2/chukwa",  Chukwa, false },
 
+        /* NINJA */
+        { "ninja",           Ninja, true  },
+        { "ninjacoin",       Ninja, false  },
+        { "argon2/ninja",    Ninja, false },
+        { "argon2id/ninja",    Ninja, false },
     };
 
     inline Algorithm algorithmNameToCanonical(const std::string &algorithmNameDirty)
@@ -77,16 +67,6 @@ namespace ArgonVariant
     {
         switch(algorithmNameToCanonical(algorithm))
         {
-			case Ninja:
-            {
-                return std::make_shared<Argon2Hash>(
-                    128,
-                    4,
-                    1,
-                    16,
-                    Constants::ARGON2ID
-                );
-            }
             case Chukwa:
             {
                 return std::make_shared<Argon2Hash>(
@@ -97,7 +77,7 @@ namespace ArgonVariant
                     Constants::ARGON2ID
                 );
             }
-            case ChukwaWrkz:
+            case Ninja:
             {
                 return std::make_shared<Argon2Hash>(
                     256,

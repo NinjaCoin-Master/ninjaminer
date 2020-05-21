@@ -108,15 +108,11 @@ std::shared_ptr<NvidiaHash> getNvidiaMiningAlgorithm(const std::string &algorith
 {
     switch(ArgonVariant::algorithmNameToCanonical(algorithm))
     {
-		case ArgonVariant::Ninja:
-        {
-            return std::make_shared<NvidiaHash>(128, 4);
-        }
         case ArgonVariant::Chukwa:
         {
             return std::make_shared<NvidiaHash>(512, 3);
         }
-        case ArgonVariant::ChukwaWrkz:
+        case ArgonVariant::Ninja:
         {
             return std::make_shared<NvidiaHash>(256, 4);
         }

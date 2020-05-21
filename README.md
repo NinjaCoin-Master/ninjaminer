@@ -25,9 +25,7 @@ If you're an arch user, you can install the [ninjaminer-bin](https://aur.archlin
 We suggest you follow the [guide here](https://docs.turtlecoin.lol/guides/mining/ninjaminer-guide) to setup your miner.
 
 ## Algorithms Supported
-* NinjaCoin - choose `ninjacoin` or `ninja`
-* TurtleCoin - choose `turtlecoin` or `chukwa`
-* WrkzCoin - choose `wrkzcoin` or `chukwa_wrkz`
+* NinjaCoin - choose `ninja`
 
 Want the miner to support another argon coin? Open an issue, or even better, open a pull request!
 
