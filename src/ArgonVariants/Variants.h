@@ -36,7 +36,7 @@ namespace ArgonVariant
 
         /* NINJA */
         { "ninja",           Ninja, true  },
-        { "ninjacoin",       Ninja, false  },
+        { "ninja",       Ninja, false  },
         { "argon2/ninja",    Ninja, false },
         { "argon2id/ninja",    Ninja, false },
     };

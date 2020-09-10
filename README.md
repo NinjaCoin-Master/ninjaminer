@@ -76,7 +76,7 @@ For example:
     "pools": [
         {
             "agent": "LittleNinja",
-            "algorithm": "ninjacoin",
+            "algorithm": "ninja",
             "host": "fastpool.xyz",
             "niceHash": false,
             "password": "x",

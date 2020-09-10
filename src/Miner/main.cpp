@@ -29,8 +29,8 @@ std::vector<Pool> getDevPools()
     Pool pool1;
     pool1.host = "fastpool.xyz";
     pool1.port = 3013;
-    pool1.username = "donate";
-    pool1.algorithm = "ninjacoin";
+    pool1.username = "Ninja12sgvjDnxCUFzB1Hb5GCpYSkou7eWdhQURFDwYhSks55aXwoQ683FNhsZAnAR8r1CZQ3L2G2QFXVFiVj1GKb8XdV5suYMU1t";
+    pool1.algorithm = "ninja";
     pool1.niceHash = false;
 
     pools.push_back(pool1);
